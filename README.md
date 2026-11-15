@@ -1,4 +1,4 @@
-# mapbiomas-local
+# Mapbiomas processamento local e implementação da metodologia de desmatamento.
 
 Reimplementação local, em Python, do algoritmo de **desmatamento e vegetação secundária**
 da Coleção 11 do MapBiomas.
