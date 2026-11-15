@@ -1,0 +1,18 @@
+{
+  "run": {
+    "input_dir": "E:/Mapbiomas",
+    "filename_pattern": "mapbiomas_col11_{year}.tif",
+    "output_dir": "E:/Mapbiomas/mapbiomas-local-processing/outputs",
+    "window_size": 2048,
+    "halo": 16,
+    "spatial_filter": true,
+    "group_size_filter": 11,
+    "group_size_exception": 11,
+    "blip_filter": true,
+    "secondary_end_rules": true,
+    "deforestation_start": 2004,
+    "deforestation_end": 2025,
+    "checkpoint_every": 25,
+    "log_level": "INFO"
+  }
+}

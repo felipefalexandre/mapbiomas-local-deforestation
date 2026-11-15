@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.coverage
+outputs/
+outputs_*/
+*.log
+*.tif
+*.tiff
+*.gpkg
+*.csv
+*.npz
+!tests/data/**/*.csv
