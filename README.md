@@ -13,6 +13,15 @@ O escopo é **apenas o algoritmo**: não há biomas, municípios, elegibilidade 
 outro filtro territorial. Os produtos são os mapas anuais de transição e, opcionalmente,
 idade da vegetação secundária e frequência de desmatamento.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/method-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/figures/method-light.png">
+  <img alt="Esquema do método: entrada de cobertura, agregação em três estados, regras temporais, pós-processamento e filtro espacial, com um exemplo de pixel ao longo da série, o catálogo de regras e os produtos" src="docs/figures/method-light.png">
+</picture>
+
+<p align="center"><sub>Esquema do método — as mesmas regras do repositório de referência,
+executadas aqui localmente, sem Earth Engine.</sub></p>
+
 ## Produtos
 
 | Produto | Caminho | Conteúdo |
