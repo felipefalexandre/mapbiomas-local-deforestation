@@ -80,13 +80,30 @@ def qa_products(
                 if not tags.get(key):
                     warnings.append(f"{year}: missing tag '{key}'")
         iterator = tqdm(windows, desc="qa", unit="win") if progress else windows
+        failed_reads: dict[int, int] = {}
+        read_examples: list[str] = []
         for window in iterator:
             for year, ds in datasets.items():
-                data = ds.read(1, window=window)
+                try:
+                    data = ds.read(1, window=window)
+                except Exception as exc:
+                    failed_reads[year] = failed_reads.get(year, 0) + 1
+                    if len(read_examples) < 5:
+                        detail = (
+                            str(exc).splitlines()[0] if str(exc) else type(exc).__name__
+                        )
+                        read_examples.append(
+                            f"{year} @ {int(window.col_off)},{int(window.row_off)}: {detail}"
+                        )
+                    continue
                 totals[year] += np.bincount(data.ravel(), minlength=256)
     finally:
         for ds in datasets.values():
             ds.close()
+
+    for year, count in sorted(failed_reads.items()):
+        errors.append(f"{year}: {count} window(s) could not be read")
+    errors.extend(read_examples)
 
     for year in years:
         counts = totals[year]
@@ -112,7 +129,10 @@ def qa_products(
     age_path = config.secondary_vegetation_dir / "secondary_vegetation_age.tif"
     freq_path = config.secondary_vegetation_dir / "deforestation_frequency.tif"
     for name, path in (("age", age_path), ("frequency", freq_path)):
-        if path.is_file():
+        if not path.is_file():
+            secondary[name] = {"path": str(path), "exists": False}
+            continue
+        try:
             with rasterio.open(path) as ds:
                 secondary[name] = {
                     "path": str(path),
@@ -124,8 +144,9 @@ def qa_products(
                         and list(ds.transform)[:6] == list(grid.transform)[:6]
                     ),
                 }
-        else:
-            secondary[name] = {"path": str(path), "exists": False}
+        except Exception as exc:
+            errors.append(f"{name}: cannot open {path.name} ({exc})")
+            secondary[name] = {"path": str(path), "error": str(exc)}
 
     report = {
         "ok": not errors,

@@ -14,6 +14,7 @@ from .raster_io import (
     RasterGrid,
     RasterStack,
     check_grids,
+    check_readable,
     core_slice,
     create_output,
     discover_years,
@@ -149,6 +150,17 @@ def run_deforestation(
     state_path = config.intermediate_dir / "deforestation_state.json"
     completed = set() if force else _load_completed(state_path, signature)
     resume = bool(completed) and all(path.is_file() for path in output_paths.values())
+    if resume:
+        problems = check_readable([output_paths[year] for year in years])
+        if problems:
+            logger.warning(
+                "Existing outputs failed the read verification; they will be "
+                "regenerated."
+            )
+            for message in problems:
+                logger.warning("  %s", message)
+            resume = False
+            completed = set()
     if completed and not resume:
         completed = set()
     if resume:
@@ -219,6 +231,12 @@ def run_deforestation(
                 _save_completed(state_path, signature, completed)
 
     _save_completed(state_path, signature, completed)
+    problems = check_readable([output_paths[year] for year in years])
+    if problems:
+        raise RuntimeError(
+            "generated products failed the read verification: "
+            + "; ".join(problems[:3])
+        )
     warmup = years[:2] if len(years) >= 3 else years[:-1]
     summary = {
         "years": years,

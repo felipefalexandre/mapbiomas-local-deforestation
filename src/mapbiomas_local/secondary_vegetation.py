@@ -10,6 +10,7 @@ from tqdm import tqdm
 from .config import OUTPUT_NODATA, RunConfig
 from .raster_io import (
     check_grids,
+    check_readable,
     create_output,
     iter_windows,
     output_tags,
@@ -69,6 +70,12 @@ def run_secondary_products(config: RunConfig, progress: bool = True) -> dict:
     paths = _transition_paths(config)
     grid = check_grids(paths)
     years = sorted(paths)
+    problems = check_readable([paths[year] for year in years])
+    if problems:
+        raise RuntimeError(
+            "deforestation products are corrupted; rerun run_deforestation first: "
+            + "; ".join(problems[:3])
+        )
     age_path = config.secondary_vegetation_dir / "secondary_vegetation_age.tif"
     create_output(
         age_path,
@@ -126,6 +133,13 @@ def run_secondary_products(config: RunConfig, progress: bool = True) -> dict:
             dataset.close()
         age_writer.close()
         freq_writer.close()
+
+    problems = check_readable([age_path, freq_path], samples=8)
+    if problems:
+        raise RuntimeError(
+            "generated secondary products failed the read verification: "
+            + "; ".join(problems[:3])
+        )
 
     summary = {
         "age": str(age_path),

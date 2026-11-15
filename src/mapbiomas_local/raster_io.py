@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import datetime
+import random
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
@@ -111,6 +113,67 @@ def iter_windows(
                 return
 
 
+def safe_unlink(path: str | Path, attempts: int = 3, delay: float = 0.5) -> None:
+    path = Path(path)
+    if not path.exists():
+        return
+    error: OSError | None = None
+    for attempt in range(attempts):
+        try:
+            path.unlink()
+            return
+        except OSError as exc:
+            error = exc
+            if attempt + 1 < attempts:
+                time.sleep(delay)
+    raise RuntimeError(
+        f"could not remove existing file {path}; it may be open in another "
+        "program (QGIS, ArcGIS, Python) or blocked by the antivirus. "
+        f"Close whatever is using it and try again. ({error})"
+    )
+
+
+def check_readable(
+    paths: Sequence[str | Path],
+    samples: int = 24,
+    block_size: int = 512,
+    seed: int = 0,
+) -> list[str]:
+    problems: list[str] = []
+    for index, raw_path in enumerate(paths):
+        path = Path(raw_path)
+        name = path.name
+        try:
+            dataset = rasterio.open(path)
+        except Exception as exc:
+            problems.append(f"{name}: cannot open ({exc})")
+            continue
+        with dataset:
+            size = min(block_size, dataset.width, dataset.height)
+            rng = random.Random(seed + index)
+            failures = 0
+            examples: list[str] = []
+            for _ in range(samples):
+                col_off = rng.randrange(0, max(1, dataset.width - size + 1))
+                row_off = rng.randrange(0, max(1, dataset.height - size + 1))
+                window = Window(col_off, row_off, size, size)
+                try:
+                    dataset.read(1, window=window)
+                except Exception as exc:
+                    failures += 1
+                    if len(examples) < 2:
+                        detail = (
+                            str(exc).splitlines()[0] if str(exc) else type(exc).__name__
+                        )
+                        examples.append(f"{detail} at {col_off},{row_off}")
+            if failures:
+                problems.append(
+                    f"{name}: {failures}/{samples} sampled blocks unreadable "
+                    f"({'; '.join(examples)})"
+                )
+    return problems
+
+
 def expand_window(window: Window, halo: int, width: int, height: int) -> Window:
     row0 = max(0, int(window.row_off) - halo)
     col0 = max(0, int(window.col_off) - halo)
@@ -169,6 +232,7 @@ def create_output(
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    safe_unlink(path)
     profile = {
         "driver": "GTiff",
         "width": grid.width,
